@@ -1,4 +1,6 @@
 import os
+from tkinter import simpledialog
+from tkinter.tix import Tree
 from numpy import roots
 import pydicom as dicom
 import tkinter as tk
@@ -20,13 +22,13 @@ from functools import partial
 def on_startup(event=None):
     # Distribui uniformemente as colunas ao iniciar o programa
     total_width = tree.winfo_width()
-    num_columns = len(tree["columns"])
+    num_columns = len(Tree["columns"])
     column_width = total_width / num_columns
-    for col in tree["columns"]:
-        tree.column(col, width=int(column_width))
+    for col in ttk.Treeview["columns"]:
+        ttk.Treeview.column(col, width=int(column_width))
 
 # Adicione esta linha após a criação do widget da árvore (tree)
-        tree.column("#0", width=300)
+        ttk.Treeview.column("#0", width=300)
 
 def format_date(date_str):
     return f"{date_str[6:8]}/{date_str[4:6]}/{date_str[0:4]}"
@@ -80,14 +82,14 @@ def edit_patient_name(event):
     selected_item = tree.selection()[0]
     
     # Obtenha o nome atual do paciente
-    current_name = tree.item(selected_item, "text")
+    current_name = ttk.Treeview.item(selected_item, "text")
     
     # Crie uma janela de diálogo para editar o nome do paciente
     new_name = simpledialog.askstring("Editar Nome do Paciente", f"Novo Nome para {current_name}:")
 
     # Se o usuário inserir um novo nome, atualize a árvore
     if new_name:
-        tree.item(selected_item, text=new_name)
+        ttk.Treeview.item(selected_item, text=new_name)
         messagebox.showinfo("Alteração Confirmada", "Você alterou o nome do paciente com sucesso!")
 
 
@@ -178,7 +180,7 @@ def get_folder_size(folder):
 
 def show_context_menu(event):
     # Obtenha a linha selecionada
-    item = tree.selection()[0]
+    item = ttk.Treeview.selection()[0]
     
     # Crie um menu de contexto
     context_menu = tk.Menu(roots, tearoff=0)
