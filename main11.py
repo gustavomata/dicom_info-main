@@ -73,6 +73,19 @@ def get_table_data(tree):
     return [headers] + data
 
 def generate_pdf_report_and_open(tree):
+    # Mapeamento dos índices das colunas para os nomes dos cabeçalhos
+    header_mapping = {
+        0: "Nome do paciente",
+        1: "Data de nascimento",
+        3: "Idade",
+        2: "Sexo",
+        4: "Data do exame",
+        6: "Fabricante",
+        7: "Equipamento",
+        9: "Quantidade de Slices",
+        10: "Espessura do Slice"
+    }
+    
     # Obtém os dados da tabela
     table_data = get_table_data(tree)
     
@@ -80,59 +93,18 @@ def generate_pdf_report_and_open(tree):
     selected_columns_indices = [0, 1, 3, 2, 4, 6, 7, 9]
     table_data_selected = [[row[i] for i in selected_columns_indices] for row in table_data]
     
-        # Define o nome do arquivo PDF
-    filename = "dicom_report.pdf"
+    # Renomeia os cabeçalhos das colunas
+    headers = [header_mapping.get(i, "") for i in selected_columns_indices]
+    table_data_selected.insert(0, headers)
     
-    # Cria um documento PDF em modo paisagem
-    pdf = SimpleDocTemplate(filename, pagesize=pagesizes.landscape(pagesizes.A4))
-    
-    # Adiciona os dados da tabela ao PDF
-    table = Table(table_data_selected, repeatRows=1)
-
-    # Define o estilo da tabela
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONT', (0, 0), (-1, -1), 'Helvetica', 8)  # Reduz o tamanho da fonte da tabela
-    ]))
-
-    page_width, _ = landscape(letter)
-    
-    # Calcula a largura total das colunas da tabela
-    total_column_width = sum(tree.column(col, width=None) for col in tree["columns"])
-    
-    # Calcula o fator de escala para ajustar a largura das colunas
-    scale_factor = page_width / total_column_width
-        
-    # Redefine a largura das colunas da tabela
-    for col in tree["columns"]:
-        if col in headers:  # Verifica se a coluna está presente nos cabeçalhos desejados
-            table_data[0] = list(table_data[0])  # Converte a tupla de cabeçalhos para uma lista
-            table_data[0].append(col)  # Adiciona o cabeçalho da coluna à lista de cabeçalhos
-            for row in table_data[1:]:
-                del row[headers.index(col) + 1]  # Remove o valor da coluna para todas as linhas
-
-    # Adiciona a tabela ao documento PDF
-    pdf.build([table])
-    
-    # Abre o relatório PDF no visualizador padrão do sistema
-    subprocess.Popen([filename], shell=True)
-
     # Define o nome do arquivo PDF
     filename = "dicom_report.pdf"
     
     # Cria um documento PDF em modo paisagem
-    pdf = SimpleDocTemplate(filename, pagesize=pagesizes.landscape(pagesizes.A4))
-
-
+    pdf = SimpleDocTemplate(filename, pagesize=landscape(letter))
     
-    # Adiciona os dados da tabela ao PDF
-    table = Table(table_data, repeatRows=1)
+    # Adiciona os dados da tabela ao PDF, excluindo a primeira linha (cabeçalhos)
+    table = Table(table_data_selected[1:], repeatRows=1)
 
     # Define o estilo da tabela
     table.setStyle(TableStyle([
@@ -145,24 +117,32 @@ def generate_pdf_report_and_open(tree):
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('FONT', (0, 0), (-1, -1), 'Helvetica', 8)  # Reduz o tamanho da fonte da tabela
     ]))
-
-    page_width, _ = landscape(letter)
     
-    # Calcula a largura total das colunas da tabela
-    total_column_width = sum(tree.column(col, width=None) for col in tree["columns"])
+    # Define o estilo do cabeçalho da tabela
+    header_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONT', (0, 0), (-1, -1), 'Helvetica', 8)  # Reduz o tamanho da fonte do cabeçalho
+    ])
     
-    # Calcula o fator de escala para ajustar a largura das colunas
-    scale_factor = page_width / total_column_width
+    # Aplica o estilo do cabeçalho à primeira linha da tabela
+    for i, header in enumerate(headers):
+        header_style.add('BACKGROUND', (i, 0), (i, 0), colors.grey)
+        header_style.add('TEXTCOLOR', (i, 0), (i, 0), colors.whitesmoke)
     
-    # Redefine a largura das colunas da tabela
-    for col in tree["columns"]:
-        tree.column(col, width=int(tree.column(col, width=None) * scale_factor))
-
     # Adiciona a tabela ao documento PDF
+    table.setStyle(header_style)
     pdf.build([table])
     
     # Abre o relatório PDF no visualizador padrão do sistema
     subprocess.Popen([filename], shell=True)
+
+
 
     
 
@@ -427,9 +407,13 @@ def show_dicom_info(main_directory):
         open_viewer_window(patient_key, dicom_files)
 
     def open_folder(event):
-        item = tree.selection()[0]
-        folder_path = tree.item(item, 'values')[-1]  # Pega o valor da coluna "Abrir Pasta"
-        os.startfile(folder_path)  # Abre a pasta no Windows Explorer
+        region = tree.identify_region(event.x, event.y)
+        if region == "cell":
+            item = tree.identify_row(event.y)
+            column = tree.identify_column(event.x)
+            if column == "#13":  # Verifica se o clique ocorreu na última coluna
+                folder_path = tree.item(item, 'values')[-1]  # Pega o valor da coluna "Abrir Pasta"
+                os.startfile(folder_path)  # Abre a pasta no Windows Explorer
 
     def filter_by_name():
         query = entry_search.get().lower()
