@@ -72,6 +72,22 @@ def get_table_data(tree):
     # Retorna os cabeçalhos e os dados da tabela
     return [headers] + data
 
+def edit_patient_name(event):
+    # Obtenha a linha selecionada
+    selected_item = tree.selection()[0]
+    
+    # Obtenha o nome atual do paciente
+    current_name = tree.item(selected_item, "text")
+    
+    # Crie uma janela de diálogo para editar o nome do paciente
+    new_name = simpledialog.askstring("Editar Nome do Paciente", f"Novo Nome para {current_name}:")
+
+    # Se o usuário inserir um novo nome, atualize a árvore
+    if new_name:
+        tree.item(selected_item, text=new_name)
+        messagebox.showinfo("Alteração Confirmada", "Você alterou o nome do paciente com sucesso!")
+
+
 def generate_pdf_report_and_open(tree):
     # Mapeamento dos índices das colunas para os nomes dos cabeçalhos
     header_mapping = {
@@ -146,41 +162,6 @@ def minha_funcao(root):
     popup = tk.Toplevel(root)
 
     # Restante do código aqui
-def on_column_12_click(event):
-    # Obtenha a posição x e y do clique
-    x, y = event.x_root, event.y_root
-    
-    # Crie uma janela popup
-    popup = tk.Toplevel(root)
-    popup.title("Opções")
-    
-    # Posicione o popup perto do clique do mouse
-    popup.geometry(f"+{x}+{y}")
-    
-    # Adicione três botões ao popup
-    btn_option1 = tk.Button(popup, text="Opção 1", command=lambda: handle_option(1))
-    btn_option2 = tk.Button(popup, text="Opção 2", command=lambda: handle_option(2))
-    btn_option3 = tk.Button(popup, text="Opção 3", command=lambda: handle_option(3))
-    
-    # Posicione os botões no popup
-    btn_option1.pack(pady=5)
-    btn_option2.pack(pady=5)
-    btn_option3.pack(pady=5)
-
-# Função para lidar com a escolha de opção
-def handle_option(option):
-    if option == 1:
-        # Lógica para a opção 1
-        pass
-    elif option == 2:
-        # Lógica para a opção 2
-        pass
-    elif option == 3:
-        # Lógica para a opção 3
-        pass
-
-
-
 
 def get_folder_size(folder):
     total_size = 0
@@ -192,6 +173,25 @@ def get_folder_size(folder):
     total_size_mb = total_size / (1024 * 1024)
     return "{:.2f} MB".format(total_size_mb)
 
+def show_context_menu(event):
+    # Obtenha a linha selecionada
+    item = tree.selection()[0]
+    
+    # Crie um menu de contexto
+    context_menu = tk.Menu(root, tearoff=0)
+    context_menu.add_command(label="Editar Dados", command=lambda: edit_data(item))
+    context_menu.add_command(label="Outra Opção", command=lambda: other_option(item))
+    
+    # Exiba o menu de contexto na posição do evento
+    context_menu.post(event.x_root, event.y_root)
+
+def edit_data(item):
+    # Lógica para editar os dados da linha selecionada
+    pass
+
+def other_option(item):
+    # Lógica para a outra opção do menu de contexto
+    pass    
 
 def show_dicom_info(main_directory):
     analyzed_directories = set()
@@ -549,10 +549,8 @@ def show_dicom_info(main_directory):
     btn_gerar_relatorio.grid(row=1, column=4, pady=5, padx=5, sticky="nsew")
     btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_clear_table(tree))
     btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_open(tree))
-    
-# Associe a função ao evento de clique na coluna 12
-    tree.bind("<Button-1>", lambda event: on_column_12_click(event) if tree.identify_column(event.x) == "#12" else None)
 
+    tree.tag_bind("my_tag", "<Button-3>", show_context_menu)
     entry_search.bind("<Return>", on_enter_key)
 
     frame_buttons.grid(row=2, column=0, columnspan=5, pady=4, padx=5, sticky="nsew")
