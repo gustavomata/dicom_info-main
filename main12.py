@@ -546,11 +546,14 @@ def show_dicom_info(main_directory):
 
     total_rows_label = tk.Label(root, text="Total de Tomografias Analisadas: 0", font=("Helvetica", 14, "bold"))
 
-    reserved_rights_label = tk.Label(root, text="Cad4Share - Dicom Info - Todos os direitos reservados - LGSM", font=("Helvetica", 12))
+    reserved_rights_label = tk.Label(root, text="Cad4Share - Dicom Info - Todos os direitos reservados", font=("Helvetica", 14))
 
     header_image = tk.PhotoImage(file=r"img\logo.png")
 
     # Crie um rótulo para exibir a imagem
+
+
+    
    
    
     resized_image = header_image.subsample(2, 2)
@@ -576,7 +579,7 @@ def show_dicom_info(main_directory):
     frame_buttons.grid_columnconfigure(0, weight=1)  # Adiciona esta linha para centralizar no eixo horizontal
 
     total_rows_label.grid(row=3, column=0, columnspan=5, pady=5, padx=5, sticky="n")
-    reserved_rights_label.grid(row=0, column=0, columnspan=5, pady=5, padx=5, sticky="nsew")
+    reserved_rights_label.grid(row=1, column=0, columnspan=5, pady=5, padx=5, sticky="nsew")
 
     tree.grid(row=5, column=0, columnspan=5, padx=5, pady=5, sticky="nsew")
     root.grid_rowconfigure(5, weight=1)
