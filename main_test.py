@@ -8,35 +8,20 @@ from ttkthemes import ThemedTk
 from PIL import Image, ImageTk
 from dicom_utils import view_dicom_series, on_table_click
 from gui_utils import create_gui, open_viewer_window, update_table, on_double_click_column_resize, filter_by_name
-from reportlab.lib.pagesizes import letter, landscape
-from reportlab.platypus import PageBreak, Table, TableStyle, SimpleDocTemplate
-from reportlab.lib import colors, pagesizes  # Adiciona a importação da biblioteca pagesizes
-import subprocess
-
-
-def on_startup(event=None):
-    # Distribui uniformemente as colunas ao iniciar o programa
-    total_width = tree.winfo_width()
-    num_columns = len(tree["columns"])
-    column_width = total_width / num_columns
-    for col in tree["columns"]:
-        tree.column(col, width=int(column_width))
-
-# Adicione esta linha após a criação do widget da árvore (tree)
 
 
 def format_date(date_str):
     return f"{date_str[6:8]}/{date_str[4:6]}/{date_str[0:4]}"
 
 
-def calculate_age(birth_date_str):
+def calculate_age(birth_date_str, exam_date_str):
     try:
         birth_date = datetime.strptime(birth_date_str, "%Y%m%d")
-        current_date = datetime.now()
-        age = current_date.year - birth_date.year -- ((current_date.month, current_date.day) < (birth_date.month, birth_date.day))
+        exam_date = datetime.strptime(exam_date_str, "%Y%m%d")
+        age = (exam_date - birth_date).days // 365
         return age
     except ValueError:
-        return "N/D"
+        return "N/A"
 
 
 def extract_clean_name(given_name, family_name):
@@ -46,124 +31,11 @@ def extract_clean_name(given_name, family_name):
 
 
 def calculate_slice_thickness(ds):
-    try:
-        return "{:.2f}".format(float(getattr(ds, 'SliceThickness', "N/A")))
-    except ValueError:
-        return "N/A"
+    return "{:.2f}".format(float(getattr(ds, 'SliceThickness', "N/A")))
 
 
 def get_sex(ds):
     return getattr(ds, 'PatientSex', "N/A")
-
-
-# Modifique a lista de cabeçalhos para incluir apenas as colunas desejadas
-headers = ["Nascimento", "Sexo", "Idade", "Exame", "Descrição do Estudo", "Quantidade de Slices"]
-
-def get_table_data(tree):
-    # Obtém os cabeçalhos da tabela
-    headers = tree["columns"]
-    
-    # Obtém os dados das linhas da tabela
-    data = []
-    for item in tree.get_children():
-        row_values = tree.item(item, "values")
-        data.append([tree.item(item, "text")] + [row_values[headers.index(column)] for column in headers])
-
-    # Retorna os cabeçalhos e os dados da tabela
-    return [headers] + data
-
-def generate_pdf_report_and_open(tree):
-    # Obtém os dados da tabela
-    table_data = get_table_data(tree)
-    
-        # Define o nome do arquivo PDF
-    filename = "dicom_report.pdf"
-    
-    # Cria um documento PDF em modo paisagem
-    pdf = SimpleDocTemplate(filename, pagesize=pagesizes.landscape(pagesizes.A4))
-    
-    # Adiciona os dados da tabela ao PDF
-    table = Table(table_data, repeatRows=1)
-
-    # Define o estilo da tabela
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONT', (0, 0), (-1, -1), 'Helvetica', 8)  # Reduz o tamanho da fonte da tabela
-    ]))
-
-    page_width, _ = landscape(letter)
-    
-    # Calcula a largura total das colunas da tabela
-    total_column_width = sum(tree.column(col, width=None) for col in tree["columns"])
-    
-    # Calcula o fator de escala para ajustar a largura das colunas
-    scale_factor = page_width / total_column_width
-        
-    # Redefine a largura das colunas da tabela
-    for col in tree["columns"]:
-        if col in headers:  # Verifica se a coluna está presente nos cabeçalhos desejados
-            table_data[0] = list(table_data[0])  # Converte a tupla de cabeçalhos para uma lista
-            table_data[0].append(col)  # Adiciona o cabeçalho da coluna à lista de cabeçalhos
-            for row in table_data[1:]:
-                del row[headers.index(col) + 1]  # Remove o valor da coluna para todas as linhas
-
-    # Adiciona a tabela ao documento PDF
-    pdf.build([table])
-    
-    # Abre o relatório PDF no visualizador padrão do sistema
-    subprocess.Popen([filename], shell=True)
-
-    # Define o nome do arquivo PDF
-    filename = "dicom_report.pdf"
-    
-    # Cria um documento PDF em modo paisagem
-    pdf = SimpleDocTemplate(filename, pagesize=pagesizes.landscape(pagesizes.A4))
-    
-    # Adiciona os dados da tabela ao PDF
-    table = Table(table_data, repeatRows=1)
-
-    # Define o estilo da tabela
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONT', (0, 0), (-1, -1), 'Helvetica', 8)  # Reduz o tamanho da fonte da tabela
-    ]))
-
-    page_width, _ = landscape(letter)
-    
-    # Calcula a largura total das colunas da tabela
-    total_column_width = sum(tree.column(col, width=None) for col in tree["columns"])
-    
-    # Calcula o fator de escala para ajustar a largura das colunas
-    scale_factor = page_width / total_column_width
-    
-    # Redefine a largura das colunas da tabela
-    for col in tree["columns"]:
-        tree.column(col, width=int(tree.column(col, width=None) * scale_factor))
-
-    # Adiciona a tabela ao documento PDF
-    pdf.build([table])
-    
-    # Abre o relatório PDF no visualizador padrão do sistema
-    subprocess.Popen([filename], shell=True)
-    
-
-
-def generate_pdf_report_and_clear_table(tree):
-    # Obtém os dados da tabela
-    table_data = get_table_data(tree)
-    
 
 
 def get_folder_size(folder):
@@ -179,7 +51,6 @@ def get_folder_size(folder):
 
 def show_dicom_info(main_directory):
     analyzed_directories = set()
-    analysis_interrupted = False  # Flag para verificar se a análise foi interrompida
 
     def update_table(new_directory, sort_by_name=False, analyze_folders=False):
         tree.delete(*tree.get_children())
@@ -190,11 +61,11 @@ def show_dicom_info(main_directory):
             analyze_directory()
 
         if sort_by_name:
-            items = list(tree.get_children())
+            items = tree.get_children()
             items.sort(key=lambda item: tree.item(item, 'text').lower())
             for item in items:
                 tree.move(item, "", "end")
-
+            on_double_click_column_resize(tree)
 
     def choose_directory():
         new_directory = filedialog.askdirectory(title="Escolha o diretório para análise")
@@ -203,8 +74,6 @@ def show_dicom_info(main_directory):
             update_table(new_directory, sort_by_name=True, analyze_folders=analyze_folders)
 
     def analyze_directory():
-        nonlocal analysis_interrupted
-        analysis_interrupted = False  # Reinicia a flag ao iniciar a análise
         current_directory = main_directory.get()
         if current_directory in analyzed_directories:
             tk.messagebox.showinfo("Diretório Já Analisado", "Este diretório já foi analisado e está na tabela.")
@@ -212,13 +81,6 @@ def show_dicom_info(main_directory):
 
         progress_window = tk.Toplevel(root)
         progress_window.title("Analisando Diretório")
-
-        def on_close():
-            nonlocal analysis_interrupted
-            analysis_interrupted = True  # Define a flag para indicar que a análise foi interrompida
-            progress_window.destroy()
-
-        progress_window.protocol("WM_DELETE_WINDOW", on_close)  # Configura o evento de fechar a janela
 
         progress_window.update_idletasks()
         screen_width = progress_window.winfo_screenwidth()
@@ -237,12 +99,9 @@ def show_dicom_info(main_directory):
         progress_bar.start()
 
         def analyze_directory_async():
-            nonlocal progress_bar, progress_label, analysis_interrupted
+            nonlocal progress_bar, progress_label
             try:
                 for root_folder, _, _ in os.walk(current_directory):
-                    if analysis_interrupted:  # Verifica se a análise foi interrompida
-                        break
-
                     dicom_files = [f for f in os.listdir(root_folder) if f.lower().endswith('.dcm')]
 
                     patient_info = {}
@@ -252,18 +111,17 @@ def show_dicom_info(main_directory):
                         try:
                             ds = dicom.dcmread(dicom_path, force=True)
 
-                            patient_name = extract_clean_name(ds.PatientName.given_name, ds.PatientName.family_name)
-                            patient_key = f"{patient_name}_{ds.PatientID}"
+                            patient_key = f"{extract_clean_name(ds.PatientName.given_name, ds.PatientName.family_name)}_{ds.PatientID}"
 
                             if patient_key not in patient_info:
                                 patient_folder = os.path.join(current_directory, root_folder)
                                 patient_info[patient_key] = {
                                     "Nascimento": format_date(ds.PatientBirthDate),
                                     "Sexo": get_sex(ds),
-                                    "Idade": calculate_age(ds.PatientBirthDate),
+                                    "Idade": calculate_age(ds.PatientBirthDate, ds.StudyDate),
                                     "Exame": format_date(ds.StudyDate),
                                     "Descrição do Estudo": getattr(ds, 'StudyDescription', "N/A"),
-                                    "Fabricante": getattr(ds, 'Manufacturer', "N/A"),
+                                    "Fabricante do Equipamento": getattr(ds, 'Manufacturer', "N/A"),
                                     "Equipamento": getattr(ds, 'ManufacturerModelName', "N/A"),
                                     "Tipo de Exame": getattr(ds, 'Modality', "N/A"),
                                     "Quantidade de Slices": 0,
@@ -280,16 +138,13 @@ def show_dicom_info(main_directory):
                             print(f"Aviso: Ignorando arquivo DICOM inválido: {dicom_path}")
 
                     for patient_key, info in patient_info.items():
-                        if analysis_interrupted:  # Verifica se a análise foi interrompida
-                            break
-
-                        tree.insert("", "end", text=f"{patient_name}", values=(
+                        tree.insert("", "end", text=f"{os.path.basename(root_folder)} - {patient_key}", values=(
                             info["Nascimento"],
                             info["Sexo"],
                             info["Idade"],
                             info["Exame"],
                             info["Descrição do Estudo"],
-                            info["Fabricante"],
+                            info["Fabricante do Equipamento"],
                             info["Equipamento"],
                             info["Tipo de Exame"],
                             info["Quantidade de Slices"],
@@ -302,15 +157,13 @@ def show_dicom_info(main_directory):
                     for col in tree["columns"]:
                         tree.column(col, anchor=tk.CENTER)
 
-                    if not analysis_interrupted:  # Atualiza a tabela apenas se a análise não foi interrompida
-                        analyzed_directories.add(current_directory)
-                        total_rows_label.config(text=f"Total de Tomografias Analisadas: {len(tree.get_children())}")
-                        on_double_click_column_resize(tree)
+                    analyzed_directories.add(current_directory)
+                    total_rows_label.config(text=f"Total de Tomografias Analisadas: {len(tree.get_children())}")
+                    on_double_click_column_resize(tree)
 
             finally:
                 progress_bar.stop()
                 progress_window.destroy()
-
 
         analysis_thread = Thread(target=analyze_directory_async)
         analysis_thread.start()
@@ -322,19 +175,36 @@ def show_dicom_info(main_directory):
         total_rows_label.config(text="Total de Tomografias Analisadas: 0")
 
     def toggle_dark_mode():
-        current_theme = root.tk.call("ttk::style", "theme", "use")
-        if current_theme == "clam":
-            # Altera apenas o plano de fundo da tabela para o modo escuro
+        current_theme = root.option_get('theme', 'theme')
+        if current_theme == "":
+            root.tk_setPalette(background='#2e2e2e', foreground='#ffffff', activeBackground='#4c4c4c', activeForeground='#ffffff')
             tree_style.configure("Treeview", background="#2e2e2e", fieldbackground="#2e2e2e", foreground="#ffffff")
             tree_style.map("Treeview", background=[("selected", "#555555")])
-            btn_dark_mode.config(text="Modo Claro")  # Altera o texto do botão para indicar o modo claro
+            btn_dark_mode.config(text="Light Mode")
+            style_entry = ttk.Style()
+            style_entry.configure("LightMode.TEntry", foreground="black")
+            entry_search = ttk.Entry(frame_buttons)
         else:
-            # Altera apenas o plano de fundo da tabela para o modo claro
+            root.tk_setPalette(background='', foreground='', activeBackground='', activeForeground='')
             tree_style.configure("Treeview", background="white", fieldbackground="white", foreground="black")
             tree_style.map("Treeview", background=[("selected", "#a6a6a6")])
-            btn_dark_mode.config(text="Modo Escuro")  # Altera o texto do botão para indicar o modo escuro
+            btn_dark_mode.config(text="Dark Mode")
+            style_entry.configure("DarkMode.TEntry", foreground="black")
 
-
+    def toggle_light_mode():
+        current_theme = root.option_get('theme', 'theme')
+        if current_theme == "":
+            root.tk_setPalette(background='white', foreground='black', activeBackground='#e4e4e4', activeForeground='black')
+            tree_style.configure("Treeview", background="white", fieldbackground="white", foreground="black")
+            tree_style.map("Treeview", background=[("selected", "#a6a6a6")])
+            btn_light_mode.config(text="Dark Mode")
+        else:
+            root.tk_setPalette(background='', foreground='', activeBackground='', activeForeground='')
+            tree_style.configure("Treeview", background="white", fieldbackground="white", foreground="black")
+            tree_style.map("Treeview", background=[("selected", "#a6a6a6")])
+            btn_light_mode.config(text="Light Mode")
+            entry_style = "DarkMode.TEntry" if current_theme != "" else "LightMode.TEntry"
+            entry_search = ttk.Entry(frame_buttons, style=entry_style)
 
     def on_double_click(event, tree):
         selected_item = tree.selection()[0]
@@ -351,29 +221,15 @@ def show_dicom_info(main_directory):
     def filter_by_name():
         query = entry_search.get().lower()
         for item in tree.get_children():
-            # Obtenha o texto do item e converta para minúsculas para comparar com a consulta
-            item_text = tree.item(item, "text").lower()
-            # Verifique se a consulta está presente no texto do item
-            if query in item_text:
+            if query in tree.item(item, "text").lower():
                 tree.item(item, open=True)
                 tree.selection_add(item)
             else:
                 tree.item(item, open=False)
                 tree.selection_remove(item)
 
-
-    def on_startup(event=None):
-    # Distribui uniformemente as colunas ao iniciar o programa
-        total_width = tree.winfo_width()
-        num_columns = len(tree["columns"])
-        column_width = total_width / num_columns
-        for col in tree["columns"]:
-            tree.column(col, width=int(column_width))
-    # Remova o evento de duplo clique para redimensionar a coluna
-        """tree.unbind("<Double-1>")"""
-
-    def on_enter_key(event):
-        filter_by_name()
+    def on_startup(event):
+        on_double_click_column_resize(tree)
 
     # Obtém o diretório do script
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -394,7 +250,7 @@ def show_dicom_info(main_directory):
     frame_buttons = ttk.Frame(root)
 
     tree = ttk.Treeview(root, columns=("Nascimento", "Sexo", "Idade", "Exame", "Descrição do Estudo",
-                                       "Fabricante", "Equipamento", "Tipo de Exame",
+                                       "Fabricante do Equipamento", "Equipamento", "Tipo de Exame",
                                        "Quantidade de Slices", "Espessura do Slice", "Tamanho da Pasta", "Visualizar", "Pasta"))
     tree.heading("#0", text="Paciente")
     tree.heading("Nascimento", text="Data de Nascimento", anchor=tk.CENTER)
@@ -402,7 +258,7 @@ def show_dicom_info(main_directory):
     tree.heading("Idade", text="Idade", anchor=tk.CENTER)
     tree.heading("Exame", text="Data do Exame", anchor=tk.CENTER)
     tree.heading("Descrição do Estudo", text="Descrição do Estudo", anchor=tk.CENTER)
-    tree.heading("Fabricante", text="Fabricante", anchor=tk.CENTER)
+    tree.heading("Fabricante do Equipamento", text="Fabricante do Equipamento", anchor=tk.CENTER)
     tree.heading("Equipamento", text="Equipamento", anchor=tk.CENTER)
     tree.heading("Tipo de Exame", text="Tipo de Exame", anchor=tk.CENTER)
     tree.heading("Quantidade de Slices", text="Quantidade de Slices", anchor=tk.CENTER)
@@ -422,11 +278,10 @@ def show_dicom_info(main_directory):
     btn_choose_dir = ttk.Button(frame_buttons, text="Escolher Diretório", command=choose_directory, style="TButton")
     btn_analyze = ttk.Button(frame_buttons, text="Analisar", command=analyze_directory, style="TButton")
     btn_dark_mode = ttk.Button(frame_buttons, text="Dark Mode", command=toggle_dark_mode, style="TButton")
-    """btn_light_mode = ttk.Button(frame_buttons, text="Light Mode", command=toggle_light_mode, style="TButton")"""
+    btn_light_mode = ttk.Button(frame_buttons, text="Light Mode", command=toggle_light_mode, style="TButton")
     btn_clear_table = ttk.Button(frame_buttons, text="Limpar Tabela", command=clear_table_and_cache, style="TButton")
-    btn_gerar_relatorio = ttk.Button(frame_buttons, text="Gerar Relatorio PDF", command=clear_table_and_cache, style="TButton")
 
-    entry_search = ttk.Entry(frame_buttons, style="TEntry")
+    entry_search = ttk.Entry(frame_buttons)
     btn_search = ttk.Button(frame_buttons, text="Buscar por Nome", command=filter_by_name, style="TButton")
 
     total_rows_label = tk.Label(root, text="Total de Tomografias Analisadas: 0", font=("Helvetica", 14, "bold"))
@@ -435,17 +290,12 @@ def show_dicom_info(main_directory):
 
     btn_choose_dir.grid(row=0, column=0, pady=5, padx=5, sticky="nsew")
     btn_analyze.grid(row=0, column=1, pady=5, padx=5, sticky="nsew")
-    btn_dark_mode.grid(row=0, column=3, pady=5, padx=5, sticky="nsew")
-    """btn_light_mode.grid(row=0, column=3, pady=5, padx=5, sticky="nsew")"""
+    btn_dark_mode.grid(row=0, column=2, pady=5, padx=5, sticky="nsew")
+    btn_light_mode.grid(row=0, column=3, pady=5, padx=5, sticky="nsew")
     btn_clear_table.grid(row=0, column=4, pady=5, padx=5, sticky="nsew")
 
     entry_search.grid(row=1, column=0, columnspan=3, pady=5, padx=5, sticky="nsew")
     btn_search.grid(row=1, column=3, pady=5, padx=5, sticky="nsew")
-    btn_gerar_relatorio.grid(row=1, column=4, pady=5, padx=5, sticky="nsew")
-    btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_clear_table(tree))
-    btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_open(tree))
-
-    entry_search.bind("<Return>", on_enter_key)
 
     frame_buttons.grid(row=2, column=0, columnspan=5, pady=4, padx=5, sticky="nsew")
     frame_buttons.grid_columnconfigure(0, weight=1)  # Adiciona esta linha para centralizar no eixo horizontal
@@ -457,7 +307,6 @@ def show_dicom_info(main_directory):
     root.grid_rowconfigure(5, weight=1)
     root.grid_columnconfigure(0, weight=1)
 
-    tree.bind("<Map>", on_startup)
     tree.bind("<Double-1>", open_folder)  # Muda o evento de duplo clique para abrir a pasta no Windows Explorer
     root.bind("<Map>", on_startup)
 
