@@ -12,6 +12,8 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import PageBreak, Table, TableStyle, SimpleDocTemplate
 from reportlab.lib import colors, pagesizes  # Adiciona a importação da biblioteca pagesizes
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 
 def on_startup(event=None):
@@ -23,7 +25,7 @@ def on_startup(event=None):
         tree.column(col, width=int(column_width))
 
 # Adicione esta linha após a criação do widget da árvore (tree)
-
+        tree.column("#0", width=300)
 
 def format_date(date_str):
     return f"{date_str[6:8]}/{date_str[4:6]}/{date_str[0:4]}"
@@ -477,9 +479,15 @@ def show_dicom_info(main_directory):
     # Remova o evento de duplo clique para redimensionar a coluna
         """tree.unbind("<Double-1>")"""
 
+    def on_search_entry_change(event):
+        entry_text = entry_search.get()
+        entry_search.delete(0, "end")  # Limpa o conteúdo atual do campo de entrada
+        entry_search.insert(0, entry_text.upper())  # Insere o texto em maiúsculas no campo de entrada    
+
     def on_enter_key(event):
         filter_by_name()
 
+        
     # Obtém o diretório do script
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -518,10 +526,9 @@ def show_dicom_info(main_directory):
 
     for col in tree["columns"]:
         tree.column(col, anchor=tk.CENTER)
-
     style = ttk.Style()
     style.configure("TButton", padding=5, relief="flat", foreground="white", background="#483D8B",
-                    font=("Helvetica", 10, "bold"))
+                    font=("Helvetica", 12, "bold"))
     style.map("TButton", background=[("pressed", "#4B0082"), ("active", "#4B0082")])
 
     btn_choose_dir = ttk.Button(frame_buttons, text="Escolher Diretório", command=choose_directory, style="TButton")
@@ -538,10 +545,18 @@ def show_dicom_info(main_directory):
 
     reserved_rights_label = tk.Label(root, text="Cad4Share - Dicom Info - Todos os direitos reservados", font=("Helvetica", 14))
 
+    header_image = tk.PhotoImage(file="dicom_info-main\logo.png")
+
+    # Crie um rótulo para exibir a imagem
+   
+   
+    resized_image = header_image.subsample(2, 2)
+    header_image_label = tk.Label(root, image=resized_image)
+    header_image_label.grid(row=1, column=0, columnspan=5, pady=5, padx=5, sticky="nsew")
+
     btn_choose_dir.grid(row=0, column=0, pady=5, padx=5, sticky="nsew")
     btn_analyze.grid(row=0, column=1, pady=5, padx=5, sticky="nsew")
     btn_dark_mode.grid(row=0, column=3, pady=5, padx=5, sticky="nsew")
-    """btn_light_mode.grid(row=0, column=3, pady=5, padx=5, sticky="nsew")"""
     btn_clear_table.grid(row=0, column=4, pady=5, padx=5, sticky="nsew")
 
     entry_search.grid(row=1, column=0, columnspan=3, pady=5, padx=5, sticky="nsew")
@@ -551,13 +566,14 @@ def show_dicom_info(main_directory):
     btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_open(tree))
 
     tree.tag_bind("my_tag", "<Button-3>", show_context_menu)
+    entry_search.bind("<KeyRelease>", on_search_entry_change)  # Adiciona o evento de liberação de tecla ao campo de entrada
     entry_search.bind("<Return>", on_enter_key)
 
     frame_buttons.grid(row=2, column=0, columnspan=5, pady=4, padx=5, sticky="nsew")
     frame_buttons.grid_columnconfigure(0, weight=1)  # Adiciona esta linha para centralizar no eixo horizontal
 
     total_rows_label.grid(row=3, column=0, columnspan=5, pady=5, padx=5, sticky="n")
-    reserved_rights_label.grid(row=4, column=0, columnspan=5, pady=5, padx=5, sticky="nsew")
+    reserved_rights_label.grid(row=1, column=0, columnspan=5, pady=5, padx=5, sticky="nsew")
 
     tree.grid(row=5, column=0, columnspan=5, padx=5, pady=5, sticky="nsew")
     root.grid_rowconfigure(5, weight=1)
