@@ -545,7 +545,7 @@ def show_dicom_info(main_directory):
 
     reserved_rights_label = tk.Label(root, text="Cad4Share - Dicom Info - Todos os direitos reservados", font=("Helvetica", 14))
 
-    header_image = tk.PhotoImage(file="dicom_info-main\logo.png")
+    header_image = tk.PhotoImage(file="dicom_info-main/logo.png")
 
     # Crie um rótulo para exibir a imagem
    
