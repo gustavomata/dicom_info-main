@@ -30,6 +30,10 @@ def on_startup(event=None):
 # Adicione esta linha após a criação do widget da árvore (tree)
         ttk.Treeview.column("#0", width=300)
 
+    scrollbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
+    scrollbar.grid(row=5, column=5, sticky="ns")
+   
+
 def format_date(date_str):
     return f"{date_str[6:8]}/{date_str[4:6]}/{date_str[0:4]}"
 
@@ -546,7 +550,7 @@ def show_dicom_info(main_directory):
 
     total_rows_label = tk.Label(root, text="Total de Tomografias Analisadas: 0", font=("Helvetica", 14, "bold"))
 
-    reserved_rights_label = tk.Label(root, text="Cad4Share - Dicom Info - Todos os direitos reservados - LGSM", font=("Helvetica", 12))
+    reserved_rights_label = tk.Label(root, text="Cad4Share - Dicom Info - Todos os direitos reservados", font=("Helvetica", 14))
 
     header_image = tk.PhotoImage(file=r"img\logo.png")
 
@@ -567,7 +571,9 @@ def show_dicom_info(main_directory):
     btn_gerar_relatorio.grid(row=1, column=4, pady=5, padx=5, sticky="nsew")
     btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_clear_table(tree))
     btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_open(tree))
-
+    scrollbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
+    scrollbar.grid(row=5, column=5, sticky="ns")
+    tree.configure(yscrollcommand=scrollbar.set)
     tree.tag_bind("my_tag", "<Button-3>", show_context_menu)
     entry_search.bind("<KeyRelease>", on_search_entry_change)  # Adiciona o evento de liberação de tecla ao campo de entrada
     entry_search.bind("<Return>", on_enter_key)
