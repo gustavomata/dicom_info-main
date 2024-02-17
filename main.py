@@ -56,7 +56,7 @@ def extract_clean_name(given_name, family_name):
 
 def calculate_slice_thickness(ds):
     try:
-        return "{:.2f}".format(float(getattr(ds, 'SliceThickness', "N/A")))
+        return "{:.2f} mm".format(float(getattr(ds, 'SliceThickness', "N/A")))
     except ValueError:
         return "N/A"
 
@@ -526,10 +526,12 @@ def show_dicom_info(main_directory):
     tree.heading("Equipamento", text="Equipamento", anchor=tk.CENTER)
     tree.heading("Tipo de Exame", text="Tipo de Exame", anchor=tk.CENTER)
     tree.heading("Quantidade de Slices", text="Quantidade de Slices", anchor=tk.CENTER)
-    tree.heading("Espessura do Slice", text="Espessura do Slice (mm)", anchor=tk.CENTER)
+    tree.heading("Espessura do Slice", text="Espessura do Slice", anchor=tk.CENTER)
     tree.heading("Tamanho da Pasta", text="Tamanho da Pasta", anchor=tk.CENTER)
     tree.heading("Visualizar", text="Visualizar", anchor=tk.CENTER)
     tree.heading("Pasta", text="Pasta", anchor=tk.CENTER)  # Adiciona o cabeçalho para a nova coluna
+    tree.column("#0", width=485)
+
 
     for col in tree["columns"]:
         tree.column(col, anchor=tk.CENTER)
