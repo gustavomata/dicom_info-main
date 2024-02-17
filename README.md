@@ -1,3 +1,5 @@
+![image](https://github.com/gustavomata/dicom_info-main/blob/main/img/logo.png)
+
 # DICOM INFO Analysis Application
 
 The DICOM INFO Analysis Application is a tool developed in Python with a graphical interface using Tkinter. It allows users to analyze and visualize medical image information in DICOM format present in a specific directory.
