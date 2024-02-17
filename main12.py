@@ -1,4 +1,5 @@
 import os
+from numpy import roots
 import pydicom as dicom
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -180,7 +181,7 @@ def show_context_menu(event):
     item = tree.selection()[0]
     
     # Crie um menu de contexto
-    context_menu = tk.Menu(root, tearoff=0)
+    context_menu = tk.Menu(roots, tearoff=0)
     context_menu.add_command(label="Editar Dados", command=lambda: edit_data(item))
     context_menu.add_command(label="Outra Opção", command=lambda: other_option(item))
     
