@@ -142,9 +142,44 @@ def generate_pdf_report_and_open(tree):
     # Abre o relatório PDF no visualizador padrão do sistema
     subprocess.Popen([filename], shell=True)
 
+def minha_funcao(root):
+    popup = tk.Toplevel(root)
 
-
+    # Restante do código aqui
+def on_column_12_click(event):
+    # Obtenha a posição x e y do clique
+    x, y = event.x_root, event.y_root
     
+    # Crie uma janela popup
+    popup = tk.Toplevel(root)
+    popup.title("Opções")
+    
+    # Posicione o popup perto do clique do mouse
+    popup.geometry(f"+{x}+{y}")
+    
+    # Adicione três botões ao popup
+    btn_option1 = tk.Button(popup, text="Opção 1", command=lambda: handle_option(1))
+    btn_option2 = tk.Button(popup, text="Opção 2", command=lambda: handle_option(2))
+    btn_option3 = tk.Button(popup, text="Opção 3", command=lambda: handle_option(3))
+    
+    # Posicione os botões no popup
+    btn_option1.pack(pady=5)
+    btn_option2.pack(pady=5)
+    btn_option3.pack(pady=5)
+
+# Função para lidar com a escolha de opção
+def handle_option(option):
+    if option == 1:
+        # Lógica para a opção 1
+        pass
+    elif option == 2:
+        # Lógica para a opção 2
+        pass
+    elif option == 3:
+        # Lógica para a opção 3
+        pass
+
+
 
 
 def get_folder_size(folder):
@@ -264,7 +299,8 @@ def show_dicom_info(main_directory):
                         if analysis_interrupted:  # Verifica se a análise foi interrompida
                             break
 
-                        tree.insert("", "end", text=f"{patient_name}", values=(
+                        # Inserção na árvore com o caminho do diretório oculto
+                        item_id = tree.insert("", "end", text=f"{patient_name}", values=(
                             info["Nascimento"],
                             info["Sexo"],
                             info["Idade"],
@@ -277,8 +313,10 @@ def show_dicom_info(main_directory):
                             info["Espessura do Slice"],
                             info["Tamanho da Pasta"],
                             info["Visualizar"],
-                            info["Pasta"]  # Adiciona o valor da nova coluna "Abrir Pasta"
+                            "Clique para abrir pasta",
                         ))
+                        # Define o caminho do diretório como valor oculto
+                        tree.set(item_id, "#13", info["Pasta"])
 
                     for col in tree["columns"]:
                         tree.column(col, anchor=tk.CENTER)
@@ -395,8 +433,6 @@ def show_dicom_info(main_directory):
             btn_dark_mode.config(command=toggle_dark_mode)
 
 
-    
-
 
 
     def on_double_click(event, tree):
@@ -412,8 +448,10 @@ def show_dicom_info(main_directory):
             item = tree.identify_row(event.y)
             column = tree.identify_column(event.x)
             if column == "#13":  # Verifica se o clique ocorreu na última coluna
-                folder_path = tree.item(item, 'values')[-1]  # Pega o valor da coluna "Abrir Pasta"
-                os.startfile(folder_path)  # Abre a pasta no Windows Explorer
+                # Recupera o caminho do diretório da linha clicada na última coluna
+                directory = tree.set(item, "#13")
+                os.startfile(directory)  # Abre a pasta no Windows Explorer
+
 
     def filter_by_name():
         query = entry_search.get().lower()
@@ -511,6 +549,9 @@ def show_dicom_info(main_directory):
     btn_gerar_relatorio.grid(row=1, column=4, pady=5, padx=5, sticky="nsew")
     btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_clear_table(tree))
     btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_open(tree))
+    
+# Associe a função ao evento de clique na coluna 12
+    tree.bind("<Button-1>", lambda event: on_column_12_click(event) if tree.identify_column(event.x) == "#12" else None)
 
     entry_search.bind("<Return>", on_enter_key)
 
@@ -527,7 +568,6 @@ def show_dicom_info(main_directory):
     tree.bind("<Map>", on_startup)
     tree.bind("<Double-1>", open_folder)  # Muda o evento de duplo clique para abrir a pasta no Windows Explorer
     root.bind("<Map>", on_startup)
-
     root.mainloop()
 
 
