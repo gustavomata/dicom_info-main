@@ -8,7 +8,7 @@ from threading import Thread
 from ttkthemes import ThemedTk
 from PIL import Image, ImageTk
 from dicom_utils import view_dicom_series
-from gui_utils import create_gui, open_viewer_window, update_table, on_double_click_column_resize, filter_by_name, on_startup
+from gui_utils import open_viewer_window, update_table, on_double_click_column_resize, filter_by_name, on_startup
 from gui_utils import format_date, extract_clean_name, calculate_slice_thickness, get_sex
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import PageBreak, Table, TableStyle, SimpleDocTemplate
@@ -16,8 +16,6 @@ from reportlab.lib import colors, pagesizes  # Adiciona a importação da biblio
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
-
-   
 
 def calculate_age(birth_date_str):
     try:
@@ -29,18 +27,16 @@ def calculate_age(birth_date_str):
         return "N/D"
 
 # Modifique a lista de cabeçalhos para incluir apenas as colunas desejadas
-headers = ["Paciente", "Nasicmento" , "Sexo", "Idade", "Exame", "Descrição do Estudo", "Quantidade de Slices"]
+headers = ["Paciente", "Nasicmento" , "Sexo", "Idade", "Exame", "Descrição do Estudo", "Quantidade de Slices", "Espessura do Slice"]
 
 def get_table_data(tree):
     # Obtém os cabeçalhos da tabela
     headers = tree["columns"]
-    
     # Obtém os dados das linhas da tabela
     data = []
     for item in tree.get_children():
         row_values = tree.item(item, "values")
         data.append([tree.item(item, "text")] + [row_values[headers.index(column)] for column in headers])
-
     # Retorna os cabeçalhos e os dados da tabela
     return [headers] + data
 
@@ -51,7 +47,7 @@ def show_context_menu(event, tree, column):
         item = tree.identify_row(event.y)
         selected_item = tree.selection()[0]
         patient_name = tree.item(selected_item, "text")
-        context_menu = tk.Menu(roots, tearoff=0)  # Correção aqui, substitua 'roots' por 'root'
+        context_menu = tk.Menu(root, tearoff=0)  # Correção aqui, substitua 'roots' por 'root'
         context_menu.add_command(label=f"Editar Dados de {patient_name}", command=lambda: edit_patient_name(selected_item))
         context_menu.post(event.x_root, event.y_root)  # Correção aqui, substitua 'x_roots' por 'x_root' e 'y_roots' por 'y_root'
     else:
@@ -61,22 +57,18 @@ def show_context_menu(event, tree, column):
         context_menu.add_command(label="Editar Dados", command=lambda: edit_patient_name(item))
         context_menu.post(event.x_root, event.y_root)  # Correção aqui, substitua 'x_roots' por 'x_root' e 'y_roots' por 'y_root'
 
-
 def edit_patient_name(event):
     # Obtenha a linha selecionada
     selected_item = tree.selection()[0]
     patient_name = tree.item(selected_item, "text")
-
     # Crie uma janela de diálogo para editar o nome do paciente
     new_name = simpledialog.askstring("Editar Nome do Paciente", f"Novo Nome para {patient_name}:")
 
     if new_name:
         # Atualize o nome na árvore
         tree.item(selected_item, text=new_name)
-        
         # Exiba uma mensagem de confirmação
         result = tkinter.messagebox.askyesno("Salvar Alterações", "Deseja salvar as alterações?")
-        
         if result:
             # Salvar as alterações
             messagebox.showinfo("Edição Confirmada", "Você editou os dados com sucesso!")
@@ -109,7 +101,7 @@ def generate_pdf_report_and_open(tree):
     
     # Renomeia os cabeçalhos das colunas
     headers = [header_mapping.get(i, "") for i in selected_columns_indices]
-    table_data_selected.insert(0, headers)
+    table_data_selected.insert(1, headers)
     
     # Define o nome do arquivo PDF
     filename = "dicom_report.pdf"

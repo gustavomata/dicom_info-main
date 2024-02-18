@@ -3,10 +3,6 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from dicom_utils import view_dicom_series, calculate_slice_thickness
 
-def create_gui():
-    # Sua implementação aqui
-    pass
-
 def open_viewer_window(patient_key, dicom_files):
     viewer_window = tk.Toplevel()
     viewer_window.title("Visualizador de DICOM")
@@ -45,9 +41,6 @@ def format_date(date_str):
     return f"{date_str[6:8]}/{date_str[4:6]}/{date_str[0:4]}"
 
 
-
-
-
 def extract_clean_name(given_name, family_name):
     given_name = ''.join(char for char in given_name if char.isalpha() or char.isspace())
     family_name = ''.join(char for char in family_name if char.isalpha() or char.isspace())
@@ -59,6 +52,5 @@ def calculate_slice_thickness(ds):
     except ValueError:
         return "N/A"
     
-
 def get_sex(ds):
     return getattr(ds, 'PatientSex', "N/A")
