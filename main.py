@@ -318,7 +318,6 @@ def show_dicom_info(main_directory):
                 progress_bar.stop()
                 progress_window.destroy()
 
-
         analysis_thread = Thread(target=analyze_directory_async)
         analysis_thread.start()
 
