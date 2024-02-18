@@ -571,7 +571,6 @@ def show_dicom_info(main_directory):
     entry_search.grid(row=1, column=0, columnspan=3, pady=5, padx=5, sticky="nsew")
     btn_search.grid(row=1, column=3, pady=5, padx=5, sticky="nsew")
     btn_gerar_relatorio.grid(row=1, column=4, pady=5, padx=5, sticky="nsew")
-    btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_clear_table(tree))
     btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_open(tree))
     scrollbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
     scrollbar.grid(row=5, column=5, sticky="ns")
