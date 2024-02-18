@@ -1,10 +1,8 @@
 import os
-from tkinter import simpledialog
-from tkinter.tix import Tree
 from numpy import roots
 import pydicom as dicom
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox, simpledialog
 from datetime import datetime
 from threading import Thread
 from ttkthemes import ThemedTk
@@ -18,20 +16,22 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
-
 def on_startup(event=None):
     # Distribui uniformemente as colunas ao iniciar o programa
     total_width = tree.winfo_width()
-    num_columns = len(Tree["columns"])
+    num_columns = len(tree["columns"])
     column_width = total_width / num_columns
-    for col in ttk.Treeview["columns"]:
-        ttk.Treeview.column(col, width=int(column_width))
+    for col in tree["columns"]:
+        tree.column(col, width=int(column_width))
+    tree.column("#0", width=400)
 
-# Adicione esta linha após a criação do widget da árvore (tree)
-        ttk.Treeview.column("#0", width=300)
+    for col in tree["columns"]:
+        tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, col))
+    tree.tag_bind("#0", "<Button-3>", lambda event: show_context_menu(event, tree, "#0"))
 
     scrollbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
     scrollbar.grid(row=5, column=5, sticky="ns")
+    tree.configure(yscrollcommand=scrollbar.set)
    
 
 def format_date(date_str):
@@ -81,20 +81,42 @@ def get_table_data(tree):
     # Retorna os cabeçalhos e os dados da tabela
     return [headers] + data
 
+def show_context_menu(event, tree, column):
+
+    # Obtenha a linha selecionada
+    item = tree.selection()[0]
+
+    # Crie um menu de contexto
+    context_menu = tk.Menu(root, tearoff=0)
+    context_menu.add_command(label="Editar Dados", command=lambda: edit_patient_name(item))
+    
+    # Exiba o menu de contexto na posição do evento
+    context_menu.post(event.x_root, event.y_root)
+
+
 def edit_patient_name(event):
     # Obtenha a linha selecionada
     selected_item = tree.selection()[0]
-    
-    # Obtenha o nome atual do paciente
-    current_name = ttk.Treeview.item(selected_item, "text")
-    
-    # Crie uma janela de diálogo para editar o nome do paciente
-    new_name = simpledialog.askstring("Editar Nome do Paciente", f"Novo Nome para {current_name}:")
+    patient_name = tree.item(selected_item, "text")
 
-    # Se o usuário inserir um novo nome, atualize a árvore
+    # Crie uma janela de diálogo para editar o nome do paciente
+    new_name = simpledialog.askstring("Editar Nome do Paciente", f"Novo Nome para {patient_name}:")
+
     if new_name:
-        ttk.Treeview.item(selected_item, text=new_name)
-        messagebox.showinfo("Alteração Confirmada", "Você alterou o nome do paciente com sucesso!")
+        # Atualize o nome na árvore
+        tree.item(selected_item, text=new_name)
+        
+        # Exiba uma mensagem de confirmação
+        result = tkinter.messagebox.askyesno("Salvar Alterações", "Deseja salvar as alterações?")
+        
+        if result:
+            # Salvar as alterações
+            messagebox.showinfo("Edição Confirmada", "Você editou os dados com sucesso!")
+        else:
+            # Reverter para o nome anterior
+            tree.item(selected_item, text=patient_name)
+            messagebox.showinfo("Edição Cancelada", "As alterações foram canceladas.")
+
 
 
 def generate_pdf_report_and_open(tree):
@@ -182,17 +204,6 @@ def get_folder_size(folder):
     total_size_mb = total_size / (1024 * 1024)
     return "{:.2f} MB".format(total_size_mb)
 
-def show_context_menu(event):
-    # Obtenha a linha selecionada
-    item = ttk.Treeview.selection()[0]
-    
-    # Crie um menu de contexto
-    context_menu = tk.Menu(roots, tearoff=0)
-    context_menu.add_command(label="Editar Dados", command=lambda: edit_data(item))
-    context_menu.add_command(label="Outra Opção", command=lambda: other_option(item))
-    
-    # Exiba o menu de contexto na posição do evento
-    context_menu.post(event.x_root, event.y_root)
 
 def edit_data(item):
     # Lógica para editar os dados da linha selecionada
@@ -219,10 +230,22 @@ def show_dicom_info(main_directory):
             items.sort(key=lambda item: tree.item(item, 'text').lower())
             for item in items:
                 tree.move(item, "", "end")
+    def on_close():
+        nonlocal analysis_interrupted
+        analysis_interrupted = True  # Set the flag to indicate that the analysis has been interrupted
+        progress_window.destroy()
+
+    def abort_analysis():
+        result = tk.messagebox.askyesno("Abort Analysis", "Are you sure you want to abort the analysis?")
+        if result:
+            nonlocal analysis_interrupted
+            analysis_interrupted = True  # Set the flag to indicate that the analysis has been interrupted
+            progress_window.destroy()
+
 
 
     def choose_directory():
-        new_directory = filedialog.askdirectory(title="Escolha o diretório para análise")
+        new_directory = filedialog.askdirectory(title="Choose the directory for analysis")
         if new_directory:
             analyze_folders = analyze_on_button_click.get()
             update_table(new_directory, sort_by_name=True, analyze_folders=analyze_folders)
@@ -236,14 +259,27 @@ def show_dicom_info(main_directory):
             return
 
         progress_window = tk.Toplevel(root)
-        progress_window.title("Analisando Diretório")
+        progress_window.title("Analyzing CT scans")
 
         def on_close():
             nonlocal analysis_interrupted
             analysis_interrupted = True  # Define a flag para indicar que a análise foi interrompida
             progress_window.destroy()
 
+
+        # Progress Bar
+                
         progress_window.protocol("WM_DELETE_WINDOW", on_close)  # Configura o evento de fechar a janela
+
+        progress_label = tk.Label(progress_window, text="Analyzing...Please wait.")
+        progress_label.pack(pady=10)
+
+        progress_bar = ttk.Progressbar(progress_window, orient="horizontal", length=300, mode="indeterminate")
+        progress_bar.pack(pady=10)
+        progress_bar.start()
+
+        abort_button = ttk.Button(progress_window, text="Abort Analysis", command=abort_analysis, style="TButton")
+        abort_button.pack(pady=10, padx=20)
 
         progress_window.update_idletasks()
         screen_width = progress_window.winfo_screenwidth()
@@ -252,14 +288,12 @@ def show_dicom_info(main_directory):
         window_height = 100
         x = (screen_width - window_width) // 2
         y = (screen_height - window_height) // 2
+
         progress_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-        progress_label = tk.Label(progress_window, text="Analisando... Aguarde.")
         progress_label.pack(pady=10)
+        progress_window.geometry("400x150")  # Adjust the dimensions as needed
 
-        progress_bar = ttk.Progressbar(progress_window, orient="horizontal", length=300, mode="indeterminate")
-        progress_bar.pack(pady=10)
-        progress_bar.start()
+       
 
         def analyze_directory_async():
             nonlocal progress_bar, progress_label, analysis_interrupted
@@ -332,7 +366,7 @@ def show_dicom_info(main_directory):
 
                     if not analysis_interrupted:  # Atualiza a tabela apenas se a análise não foi interrompida
                         analyzed_directories.add(current_directory)
-                        total_rows_label.config(text=f"Total de Tomografias Analisadas: {len(tree.get_children())}")
+                        total_rows_label.config(text=f"Total number of CT scans analyzed: {len(tree.get_children())}")
                         on_double_click_column_resize(tree)
 
             finally:
@@ -348,6 +382,7 @@ def show_dicom_info(main_directory):
         main_directory.set("")
         analyzed_directories.clear()
         total_rows_label.config(text="Total de Tomografias Analisadas: 0")
+        entry_search.delete(0, tk.END)     # Limpa o campo de busca
 
     def toggle_dark_mode():
         current_theme = root.tk.call("ttk::style", "theme", "use")
@@ -443,7 +478,6 @@ def show_dicom_info(main_directory):
 
 
 
-
     def on_double_click(event, tree):
         selected_item = tree.selection()[0]
         values = tree.item(selected_item, 'values')
@@ -483,8 +517,11 @@ def show_dicom_info(main_directory):
         column_width = total_width / num_columns
         for col in tree["columns"]:
             tree.column(col, width=int(column_width))
-    # Remova o evento de duplo clique para redimensionar a coluna
-        """tree.unbind("<Double-1>")"""
+        tree.column("#0", width=400)
+
+        for col in tree["columns"]:
+            tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, col))
+        
 
     def on_search_entry_change(event):
         entry_text = entry_search.get()
@@ -530,34 +567,32 @@ def show_dicom_info(main_directory):
     tree.heading("Tamanho da Pasta", text="Tamanho da Pasta", anchor=tk.CENTER)
     tree.heading("Visualizar", text="Visualizar", anchor=tk.CENTER)
     tree.heading("Pasta", text="Pasta", anchor=tk.CENTER)  # Adiciona o cabeçalho para a nova coluna
-    tree.column("#0", width=485)
 
 
     for col in tree["columns"]:
         tree.column(col, anchor=tk.CENTER)
     style = ttk.Style()
     style.configure("TButton", padding=5, relief="flat", foreground="white", background="#483D8B",
-                    font=("Helvetica", 12, "bold"))
+                   font=("Helvetica", 12, "bold"))
     style.map("TButton", background=[("pressed", "#4B0082"), ("active", "#4B0082")])
 
-    btn_choose_dir = ttk.Button(frame_buttons, text="Escolher Diretório", command=choose_directory, style="TButton")
-    btn_analyze = ttk.Button(frame_buttons, text="Analisar", command=analyze_directory, style="TButton")
+    btn_choose_dir = ttk.Button(frame_buttons, text="Choose Folder", command=choose_directory, style="TButton")
+    btn_analyze = ttk.Button(frame_buttons, text="Analyze", command=analyze_directory, style="TButton")
     btn_dark_mode = ttk.Button(frame_buttons, text="Dark Mode", command=toggle_dark_mode, style="TButton")
-    """btn_light_mode = ttk.Button(frame_buttons, text="Light Mode", command=toggle_light_mode, style="TButton")"""
-    btn_clear_table = ttk.Button(frame_buttons, text="Limpar Tabela", command=clear_table_and_cache, style="TButton")
-    btn_gerar_relatorio = ttk.Button(frame_buttons, text="Gerar Relatorio PDF", command=clear_table_and_cache, style="TButton")
+    btn_clear_table = ttk.Button(frame_buttons, text="Clean Table", command=clear_table_and_cache, style="TButton")
+    btn_gerar_relatorio = ttk.Button(frame_buttons, text="Generate PDF Report", command=clear_table_and_cache, style="TButton")
 
+
+    scrollbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
+    scrollbar.grid(row=5, column=5, sticky="ns")
+    tree.configure(yscrollcommand=scrollbar.set)
     entry_search = ttk.Entry(frame_buttons, style="TEntry")
-    btn_search = ttk.Button(frame_buttons, text="Buscar por Nome", command=filter_by_name, style="TButton")
-
-    total_rows_label = tk.Label(root, text="Total de Tomografias Analisadas: 0", font=("Helvetica", 14, "bold"))
-
-    reserved_rights_label = tk.Label(root, text="Cad4Share - Dicom Info - Todos os direitos reservados", font=("Helvetica", 14))
-
+    btn_search = ttk.Button(frame_buttons, text="Search by Name", command=filter_by_name, style="TButton")
+    total_rows_label = tk.Label(root, text="Total number of CT scans analyzed: 0", font=("Helvetica", 14, "bold"))
+    reserved_rights_label = tk.Label(root, text="Cad4Share - Dicom Info - All rights reserved", font=("Helvetica", 14))
     header_image = tk.PhotoImage(file=r"img\logo.png")
 
     # Crie um rótulo para exibir a imagem
-   
    
     resized_image = header_image.subsample(2, 2)
     header_image_label = tk.Label(root, image=resized_image)
@@ -572,10 +607,7 @@ def show_dicom_info(main_directory):
     btn_search.grid(row=1, column=3, pady=5, padx=5, sticky="nsew")
     btn_gerar_relatorio.grid(row=1, column=4, pady=5, padx=5, sticky="nsew")
     btn_gerar_relatorio.config(command=lambda: generate_pdf_report_and_open(tree))
-    scrollbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
-    scrollbar.grid(row=5, column=5, sticky="ns")
-    tree.configure(yscrollcommand=scrollbar.set)
-    tree.tag_bind("my_tag", "<Button-3>", show_context_menu)
+   
     entry_search.bind("<KeyRelease>", on_search_entry_change)  # Adiciona o evento de liberação de tecla ao campo de entrada
     entry_search.bind("<Return>", on_enter_key)
 
@@ -588,9 +620,11 @@ def show_dicom_info(main_directory):
     tree.grid(row=5, column=0, columnspan=5, padx=5, pady=5, sticky="nsew")
     root.grid_rowconfigure(5, weight=1)
     root.grid_columnconfigure(0, weight=1)
-
-    tree.bind("<Map>", on_startup)
     tree.bind("<Double-1>", open_folder)  # Muda o evento de duplo clique para abrir a pasta no Windows Explorer
+
+    for col in tree["columns"]:
+        tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, col))
+
     root.bind("<Map>", on_startup)
     root.mainloop()
 
