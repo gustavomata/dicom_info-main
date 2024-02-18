@@ -7,8 +7,9 @@ from datetime import datetime
 from threading import Thread
 from ttkthemes import ThemedTk
 from PIL import Image, ImageTk
-from dicom_utils import view_dicom_series, on_table_click
-from gui_utils import create_gui, open_viewer_window, update_table, on_double_click_column_resize, filter_by_name
+from dicom_utils import view_dicom_series
+from gui_utils import create_gui, open_viewer_window, update_table, on_double_click_column_resize, filter_by_name, on_startup
+from gui_utils import format_date, extract_clean_name, calculate_slice_thickness, get_sex
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import PageBreak, Table, TableStyle, SimpleDocTemplate
 from reportlab.lib import colors, pagesizes  # Adiciona a importação da biblioteca pagesizes
@@ -16,27 +17,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
-def on_startup(event=None):
-    # Distribui uniformemente as colunas ao iniciar o programa
-    total_width = tree.winfo_width()
-    num_columns = len(tree["columns"])
-    column_width = total_width / num_columns
-    for col in tree["columns"]:
-        tree.column(col, width=int(column_width))
-    tree.column("#0", width=400)
-
-    for col in tree["columns"]:
-        tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, col))
-    tree.tag_bind("#0", "<Button-3>", lambda event: show_context_menu(event, tree, "#0"))
-
-    scrollbar = ttk.Scrollbar(root, orient="vertical", command=tree.yview)
-    scrollbar.grid(row=5, column=5, sticky="ns")
-    tree.configure(yscrollcommand=scrollbar.set)
    
-
-def format_date(date_str):
-    return f"{date_str[6:8]}/{date_str[4:6]}/{date_str[0:4]}"
-
 
 def calculate_age(birth_date_str):
     try:
@@ -47,26 +28,8 @@ def calculate_age(birth_date_str):
     except ValueError:
         return "N/D"
 
-
-def extract_clean_name(given_name, family_name):
-    given_name = ''.join(char for char in given_name if char.isalpha() or char.isspace())
-    family_name = ''.join(char for char in family_name if char.isalpha() or char.isspace())
-    return f"{given_name.strip()} {family_name.strip()}"
-
-
-def calculate_slice_thickness(ds):
-    try:
-        return "{:.2f} mm".format(float(getattr(ds, 'SliceThickness', "N/A")))
-    except ValueError:
-        return "N/A"
-
-
-def get_sex(ds):
-    return getattr(ds, 'PatientSex', "N/A")
-
-
 # Modifique a lista de cabeçalhos para incluir apenas as colunas desejadas
-headers = ["Nascimento", "Sexo", "Idade", "Exame", "Descrição do Estudo", "Quantidade de Slices"]
+headers = ["Paciente", "Nasicmento" , "Sexo", "Idade", "Exame", "Descrição do Estudo", "Quantidade de Slices"]
 
 def get_table_data(tree):
     # Obtém os cabeçalhos da tabela
@@ -82,16 +45,21 @@ def get_table_data(tree):
     return [headers] + data
 
 def show_context_menu(event, tree, column):
-
-    # Obtenha a linha selecionada
-    item = tree.selection()[0]
-
-    # Crie um menu de contexto
-    context_menu = tk.Menu(root, tearoff=0)
-    context_menu.add_command(label="Editar Dados", command=lambda: edit_patient_name(item))
-    
-    # Exiba o menu de contexto na posição do evento
-    context_menu.post(event.x_root, event.y_root)
+    print(f"Column: {column}, Event: {event}")
+    if column == "#0":
+        # Se a coluna for a primeira coluna, crie um menu suspenso personalizado
+        item = tree.identify_row(event.y)
+        selected_item = tree.selection()[0]
+        patient_name = tree.item(selected_item, "text")
+        context_menu = tk.Menu(roots, tearoff=0)  # Correção aqui, substitua 'roots' por 'root'
+        context_menu.add_command(label=f"Editar Dados de {patient_name}", command=lambda: edit_patient_name(selected_item))
+        context_menu.post(event.x_root, event.y_root)  # Correção aqui, substitua 'x_roots' por 'x_root' e 'y_roots' por 'y_root'
+    else:
+        # Se a coluna não for a primeira, use o menu padrão
+        item = tree.identify_row(event.y)
+        context_menu = tk.Menu(root, tearoff=0)  # Correção aqui, substitua 'roots' por 'root'
+        context_menu.add_command(label="Editar Dados", command=lambda: edit_patient_name(item))
+        context_menu.post(event.x_root, event.y_root)  # Correção aqui, substitua 'x_roots' por 'x_root' e 'y_roots' por 'y_root'
 
 
 def edit_patient_name(event):
@@ -116,7 +84,6 @@ def edit_patient_name(event):
             # Reverter para o nome anterior
             tree.item(selected_item, text=patient_name)
             messagebox.showinfo("Edição Cancelada", "As alterações foram canceladas.")
-
 
 
 def generate_pdf_report_and_open(tree):
@@ -171,10 +138,10 @@ def generate_pdf_report_and_open(tree):
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
         ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONT', (0, 0), (-1, -1), 'Helvetica', 8)  # Reduz o tamanho da fonte do cabeçalho
+        ('FONT', (0, 0), (-1, -1), 'Helvetica', 9)  # Reduz o tamanho da fonte do cabeçalho
     ])
     
     # Aplica o estilo do cabeçalho à primeira linha da tabela
@@ -189,11 +156,6 @@ def generate_pdf_report_and_open(tree):
     # Abre o relatório PDF no visualizador padrão do sistema
     subprocess.Popen([filename], shell=True)
 
-def minha_funcao(root):
-    popup = tk.Toplevel(root)
-
-    # Restante do código aqui
-
 def get_folder_size(folder):
     total_size = 0
     for dirpath, dirnames, filenames in os.walk(folder):
@@ -202,16 +164,8 @@ def get_folder_size(folder):
                 filepath = os.path.join(dirpath, filename)
                 total_size += os.path.getsize(filepath)
     total_size_mb = total_size / (1024 * 1024)
-    return "{:.2f} MB".format(total_size_mb)
-
-
-def edit_data(item):
-    # Lógica para editar os dados da linha selecionada
-    pass
-
-def other_option(item):
-    # Lógica para a outra opção do menu de contexto
-    pass    
+    total_size_mb_int = round(total_size_mb)
+    return "{} MB".format(int(total_size_mb_int))
 
 def show_dicom_info(main_directory):
     analyzed_directories = set()
@@ -241,7 +195,6 @@ def show_dicom_info(main_directory):
             nonlocal analysis_interrupted
             analysis_interrupted = True  # Set the flag to indicate that the analysis has been interrupted
             progress_window.destroy()
-
 
 
     def choose_directory():
@@ -476,8 +429,25 @@ def show_dicom_info(main_directory):
             # Atualize o comando do botão para alternar para o modo claro
             btn_dark_mode.config(command=toggle_dark_mode)
 
+    def on_table_click(event):
+        region = tree.identify_region(event.x, event.y)
+        if region == "cell":
+            item = tree.identify_row(event.y)
+            column = tree.identify_column(event.x)
+            if column == "#12":  # Verifica se o clique ocorreu na última coluna
+                item_text = tree.item(item)["text"]
+                if " - " in item_text:
+                    _, patient_key = item_text.split(" - ", 1)  # Dividir apenas uma vez
+                    dicom_files = tree.item(item)["values"][-1]
+                    start_viewer_thread(patient_key, dicom_files)
+                else:
+                    messagebox.showerror("Erro", "Texto do item da tabela não está no formato esperado.")
 
-
+    def start_viewer_thread(patient_key, dicom_files):
+        viewer_thread = Thread(target=view_dicom_series, args=(patient_key, dicom_files))
+        viewer_thread.daemon = True
+        viewer_thread.start()
+    
     def on_double_click(event, tree):
         selected_item = tree.selection()[0]
         values = tree.item(selected_item, 'values')
@@ -495,7 +465,6 @@ def show_dicom_info(main_directory):
                 directory = tree.set(item, "#13")
                 os.startfile(directory)  # Abre a pasta no Windows Explorer
 
-
     def filter_by_name():
         query = entry_search.get().lower()
         for item in tree.get_children():
@@ -509,20 +478,21 @@ def show_dicom_info(main_directory):
                 tree.item(item, open=False)
                 tree.selection_remove(item)
 
-
     def on_startup(event=None):
-    # Distribui uniformemente as colunas ao iniciar o programa
+        # Distribui uniformemente as colunas ao iniciar o programa
         total_width = tree.winfo_width()
         num_columns = len(tree["columns"])
         column_width = total_width / num_columns
         for col in tree["columns"]:
-            tree.column(col, width=int(column_width))
-        tree.column("#0", width=400)
-
-        for col in tree["columns"]:
-            tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, col))
+            tree.column(col, width=int(column_width), anchor="center")
         
+        # Defina a largura da primeira coluna
+        tree.column("#0", width=400)
+        
+        # Configure o alinhamento da primeira coluna para oeste (west)
+        tree.tag_configure("center_align", anchor="center")
 
+    
     def on_search_entry_change(event):
         entry_text = entry_search.get()
         entry_search.delete(0, "end")  # Limpa o conteúdo atual do campo de entrada
@@ -531,7 +501,6 @@ def show_dicom_info(main_directory):
     def on_enter_key(event):
         filter_by_name()
 
-        
     # Obtém o diretório do script
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -620,10 +589,11 @@ def show_dicom_info(main_directory):
     tree.grid(row=5, column=0, columnspan=5, padx=5, pady=5, sticky="nsew")
     root.grid_rowconfigure(5, weight=1)
     root.grid_columnconfigure(0, weight=1)
-    tree.bind("<Double-1>", open_folder)  # Muda o evento de duplo clique para abrir a pasta no Windows Explorer
+    tree.bind("<Double-1>", open_folder) # Muda o evento de duplo clique para abrir a pasta no Windows Explorer
+    tree.bind("<ButtonRelease-1>", on_table_click)
 
-    for col in tree["columns"]:
-        tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, col))
+    # tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, root))
+
 
     root.bind("<Map>", on_startup)
     root.mainloop()

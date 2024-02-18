@@ -42,17 +42,11 @@ def view_dicom_series(patient_key, dicom_files):
         except pydicom.errors.InvalidDicomError:
             print(f"Aviso: Ignorando arquivo DICOM inválido: {dicom_path}")
 
+
 def calculate_slice_thickness(ds):
-    # Sua implementação aqui
-    pass            
-
-# ... (código anterior permanece inalterado)
-
-def on_table_click(event):
-    item = tree.selection()[0]
-    item_text = tree.item(item)["text"]
-    _, patient_key = item_text.split(" - ")
-    dicom_files = tree.item(item)["values"][-1]
-    view_dicom_series(patient_key, dicom_files)
-
-
+    try:
+        return "{:.2f} mm".format(float(getattr(ds, 'SliceThickness', "N/A")))
+    except ValueError:
+        return "N/A"
+    
+    
