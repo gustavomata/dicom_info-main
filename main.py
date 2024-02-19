@@ -7,16 +7,26 @@ from datetime import datetime
 from threading import Thread
 from ttkthemes import ThemedTk
 from PIL import Image, ImageTk
-from dicom_utils import view_dicom_series
+from dicom_utils import plot_slices
 from gui_utils import open_viewer_window, update_table, on_double_click_column_resize, filter_by_name, on_startup
-from gui_utils import format_date, extract_clean_name, calculate_slice_thickness, get_sex
+from gui_utils import format_date, extract_clean_name, get_sex
 from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.utils import ImageReader
+from reportlab.pdfgen import canvas
 from reportlab.platypus import PageBreak, Table, TableStyle, SimpleDocTemplate
 from reportlab.lib import colors, pagesizes  # Adiciona a importação da biblioteca pagesizes
+from reportlab.platypus import PageBreak, Table, TableStyle, SimpleDocTemplate, Image as RLImage
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
+
+def calculate_slice_thickness(ds):
+    try:
+        return "{:.2f} mm".format(float(getattr(ds, 'SliceThickness', "N/A")))
+    except ValueError:
+        return "N/A"
+    
 def calculate_age(birth_date_str):
     try:
         birth_date = datetime.strptime(birth_date_str, "%Y%m%d")
@@ -79,6 +89,7 @@ def edit_patient_name(event):
 
 
 def generate_pdf_report_and_open(tree):
+    
     # Mapeamento dos índices das colunas para os nomes dos cabeçalhos
     header_mapping = {
         0: "Nome do paciente",
@@ -143,7 +154,11 @@ def generate_pdf_report_and_open(tree):
     
     # Adiciona a tabela ao documento PDF
     table.setStyle(header_style)
-    pdf.build([table])
+     # Adiciona o logo ao início do documento PDF
+    logo_path = ".\img\logo.png"  # Substitua pelo caminho real do seu arquivo de logo
+    original_logo = RLImage(logo_path)  # Adiciona um salto de página após o logo
+    scaled_logo = RLImage(logo_path, width=320, height=100)
+    pdf.build([scaled_logo, table])
     
     # Abre o relatório PDF no visualizador padrão do sistema
     subprocess.Popen([filename], shell=True)
@@ -425,19 +440,23 @@ def show_dicom_info(main_directory):
         if region == "cell":
             item = tree.identify_row(event.y)
             column = tree.identify_column(event.x)
-            if column == "#12":  # Verifica se o clique ocorreu na última coluna
+            if column == "#12":  # Verifica se o clique ocorreu na penúltima coluna
                 item_text = tree.item(item)["text"]
                 if " - " in item_text:
                     _, patient_key = item_text.split(" - ", 1)  # Dividir apenas uma vez
                     dicom_files = tree.item(item)["values"][-1]
-                    start_viewer_thread(patient_key, dicom_files)
+                    path = dicom_files  # Use o caminho diretamente
+                    print(f"Patient Key: {patient_key}")
+                    print(f"Path to DICOMs: {path}")
+                    plot_slices(path)
                 else:
                     messagebox.showerror("Erro", "Texto do item da tabela não está no formato esperado.")
 
-    def start_viewer_thread(patient_key, dicom_files):
-        viewer_thread = Thread(target=view_dicom_series, args=(patient_key, dicom_files))
+    def start_viewer_thread(patient_key, path):
+        viewer_thread = Thread(target=plot_slices, args=(path,))
         viewer_thread.daemon = True
         viewer_thread.start()
+
     
     def on_double_click(event, tree):
         selected_item = tree.selection()[0]
