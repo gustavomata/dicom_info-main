@@ -598,7 +598,7 @@ def show_dicom_info(main_directory):
     tree.bind("<Double-1>", open_folder) # Muda o evento de duplo clique para abrir a pasta no Windows Explorer
     tree.bind("<ButtonRelease-1>", on_table_click)
 
-    # tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, root))
+    tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, root))
 
 
     root.bind("<Map>", on_startup)
