@@ -12,13 +12,13 @@ from gui_utils import open_viewer_window, update_table, on_double_click_column_r
 from gui_utils import format_date, extract_clean_name, get_sex
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.utils import ImageReader
-from reportlab.pdfgen import canvas
 from reportlab.platypus import PageBreak, Table, TableStyle, SimpleDocTemplate
 from reportlab.lib import colors, pagesizes  # Adiciona a importação da biblioteca pagesizes
 from reportlab.platypus import PageBreak, Table, TableStyle, SimpleDocTemplate, Image as RLImage
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+import zipfile
 
 
 def calculate_slice_thickness(ds):
@@ -434,24 +434,19 @@ def show_dicom_info(main_directory):
 
             # Atualize o comando do botão para alternar para o modo claro
             btn_dark_mode.config(command=toggle_dark_mode)
-
+"""
     def on_table_click(event):
         region = tree.identify_region(event.x, event.y)
         if region == "cell":
             item = tree.identify_row(event.y)
             column = tree.identify_column(event.x)
             if column == "#12":  # Verifica se o clique ocorreu na penúltima coluna
-                item_text = tree.item(item)["text"]
                 if " - " in item_text:
-                    _, patient_key = item_text.split(" - ", 1)  # Dividir apenas uma vez
-                    dicom_files = tree.item(item)["values"][-1]
+                    dicom_files = tree.item(item)["values"][11]  # Coluna 13 (índice 12)
                     path = dicom_files  # Use o caminho diretamente
-                    print(f"Patient Key: {patient_key}")
-                    print(f"Path to DICOMs: {path}")
-                    plot_slices(path)
-                else:
-                    messagebox.showerror("Erro", "Texto do item da tabela não está no formato esperado.")
-
+                    plot_slices(path)"""
+        
+               
     def start_viewer_thread(patient_key, path):
         viewer_thread = Thread(target=plot_slices, args=(path,))
         viewer_thread.daemon = True
@@ -475,6 +470,7 @@ def show_dicom_info(main_directory):
                 directory = tree.set(item, "#13")
                 os.startfile(directory)  # Abre a pasta no Windows Explorer
 
+ 
     def filter_by_name():
         query = entry_search.get().lower()
         for item in tree.get_children():
