@@ -188,7 +188,8 @@ def plot_slices(path):
 
 
 plt.show()
+
 # Exemplo de uso
-plot_slices(path)
+# plot_slices(r"H:\DICOMS\Caso William\Silva_W_37288844")
     
     

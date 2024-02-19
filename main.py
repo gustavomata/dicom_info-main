@@ -434,24 +434,26 @@ def show_dicom_info(main_directory):
 
             # Atualize o comando do botão para alternar para o modo claro
             btn_dark_mode.config(command=toggle_dark_mode)
-"""
+
     def on_table_click(event):
         region = tree.identify_region(event.x, event.y)
         if region == "cell":
             item = tree.identify_row(event.y)
             column = tree.identify_column(event.x)
-            if column == "#12":  # Verifica se o clique ocorreu na penúltima coluna
+            if column == "#12":  # Verifica se o clique ocorreu na última coluna
+                item_text = tree.item(item)["text"]
                 if " - " in item_text:
-                    dicom_files = tree.item(item)["values"][11]  # Coluna 13 (índice 12)
-                    path = dicom_files  # Use o caminho diretamente
-                    plot_slices(path)"""
-        
-               
-    def start_viewer_thread(patient_key, path):
-        viewer_thread = Thread(target=plot_slices, args=(path,))
-        viewer_thread.daemon = True
-        viewer_thread.start()
+                    _, patient_key = item_text.split(" - ", 1)  # Dividir apenas uma vez
+                    dicom_files = tree.item(item)["values"][-1]
+                    start_viewer_thread(patient_key, dicom_files)
+                else:
+                    messagebox.showerror("Erro", "Futuro Dicom Viewer.")
 
+    def start_viewer_thread(patient_key, dicom_files):
+        viewer_thread = Thread(target=view_dicom_series, args=(patient_key, dicom_files))
+        viewer_thread.daemon = True
+        viewer_thread.start()                
+        
     
     def on_double_click(event, tree):
         selected_item = tree.selection()[0]
