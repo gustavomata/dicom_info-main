@@ -1,6 +1,8 @@
 import os
 from numpy import roots
 import pydicom as dicom
+from pydicom.data import get_testdata_files
+from pydicom.errors import InvalidDicomError
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from datetime import datetime
@@ -19,6 +21,7 @@ import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 import zipfile
+# from app_test import Application
 
 
 def calculate_slice_thickness(ds):
@@ -105,24 +108,18 @@ def generate_pdf_report_and_open(tree):
     
     # Obtém os dados da tabela
     table_data = get_table_data(tree)
-    
     # Seleciona apenas as colunas desejadas (colunas 1, 2, 4, 5, 7, 8, 10 e 11)
     selected_columns_indices = [0, 1, 3, 2, 4, 6, 7, 9]
     table_data_selected = [[row[i] for i in selected_columns_indices] for row in table_data]
-    
     # Renomeia os cabeçalhos das colunas
     headers = [header_mapping.get(i, "") for i in selected_columns_indices]
     table_data_selected.insert(1, headers)
-    
     # Define o nome do arquivo PDF
     filename = "dicom_report.pdf"
-    
     # Cria um documento PDF em modo paisagem
     pdf = SimpleDocTemplate(filename, pagesize=landscape(letter))
-    
     # Adiciona os dados da tabela ao PDF, excluindo a primeira linha (cabeçalhos)
     table = Table(table_data_selected[1:], repeatRows=1)
-
     # Define o estilo da tabela
     table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
@@ -146,7 +143,7 @@ def generate_pdf_report_and_open(tree):
         ('GRID', (0, 0), (-1, -1), 1, colors.black),
         ('FONT', (0, 0), (-1, -1), 'Helvetica', 9)  # Reduz o tamanho da fonte do cabeçalho
     ])
-    
+
     # Aplica o estilo do cabeçalho à primeira linha da tabela
     for i, header in enumerate(headers):
         header_style.add('BACKGROUND', (i, 0), (i, 0), colors.grey)
@@ -155,7 +152,7 @@ def generate_pdf_report_and_open(tree):
     # Adiciona a tabela ao documento PDF
     table.setStyle(header_style)
      # Adiciona o logo ao início do documento PDF
-    logo_path = ".\img\logo.png"  # Substitua pelo caminho real do seu arquivo de logo
+    logo_path = "./img/logo.png"  # Substitua pelo caminho real do seu arquivo de logo
     original_logo = RLImage(logo_path)  # Adiciona um salto de página após o logo
     scaled_logo = RLImage(logo_path, width=320, height=100)
     pdf.build([scaled_logo, table])
@@ -258,6 +255,7 @@ def show_dicom_info(main_directory):
         def analyze_directory_async():
             nonlocal progress_bar, progress_label, analysis_interrupted
             try:
+                processed_files = set()
                 for root_folder, _, _ in os.walk(current_directory):
                     if analysis_interrupted:  # Verifica se a análise foi interrompida
                         break
@@ -269,7 +267,9 @@ def show_dicom_info(main_directory):
                     for dicom_file in dicom_files:
                         dicom_path = os.path.join(root_folder, dicom_file)
                         try:
-                            ds = dicom.dcmread(dicom_path, force=True)
+                            if dicom_path not in processed_files:  # Check if file is already processed
+                                ds = dicom.dcmread(dicom_path, force=True)
+                                processed_files.add(dicom_path)  # Add to processed files set
 
                             patient_name = extract_clean_name(ds.PatientName.given_name, ds.PatientName.family_name)
                             patient_key = f"{patient_name}_{ds.PatientID}"
@@ -435,7 +435,7 @@ def show_dicom_info(main_directory):
             # Atualize o comando do botão para alternar para o modo claro
             btn_dark_mode.config(command=toggle_dark_mode)
 
-    def on_table_click(event):
+    def on_table_click(self, event):
         region = tree.identify_region(event.x, event.y)
         if region == "cell":
             item = tree.identify_row(event.y)
@@ -447,7 +447,7 @@ def show_dicom_info(main_directory):
                     dicom_files = tree.item(item)["values"][-1]
                     start_viewer_thread(patient_key, dicom_files)
                 else:
-                    messagebox.showerror("Erro", "Futuro Dicom Viewer.")
+                    messagebox.showerror("Erro", "Dicom Viewer. Soon will be launched")
 
     def start_viewer_thread(patient_key, dicom_files):
         viewer_thread = Thread(target=view_dicom_series, args=(patient_key, dicom_files))
@@ -568,8 +568,6 @@ def show_dicom_info(main_directory):
     total_rows_label = tk.Label(root, text="Total number of CT scans analyzed: 0", font=("Helvetica", 14, "bold"))
     reserved_rights_label = tk.Label(root, text="Cad4Share - Dicom Info - All rights reserved", font=("Helvetica", 14))
     header_image = tk.PhotoImage(file=r"img\logo.png")
-
-    # Crie um rótulo para exibir a imagem
    
     resized_image = header_image.subsample(2, 2)
     header_image_label = tk.Label(root, image=resized_image)
@@ -599,15 +597,11 @@ def show_dicom_info(main_directory):
     root.grid_columnconfigure(0, weight=1)
     tree.bind("<Double-1>", open_folder) # Muda o evento de duplo clique para abrir a pasta no Windows Explorer
     tree.bind("<ButtonRelease-1>", on_table_click)
-
     tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, root))
 
 
     root.bind("<Map>", on_startup)
     root.mainloop()
-
-
 # Substitua o caminho abaixo pelo caminho real para o diretório com suas imagens DICOM
 main_directory = "./data2"
-
 show_dicom_info(main_directory)

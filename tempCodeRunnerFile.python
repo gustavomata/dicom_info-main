@@ -1,0 +1,170 @@
+import os
+import pydicom as dicom
+from pydicom.errors import InvalidDicomError
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox, simpledialog
+from datetime import datetime
+from threading import Thread
+from ttkthemes import ThemedTk
+import subprocess
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib import colors
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from PIL import Image, ImageTk
+
+def calculate_slice_thickness(ds):
+    try:
+        return "{:.2f} mm".format(float(getattr(ds, 'SliceThickness', "N/A")))
+    except ValueError:
+        return "N/A"
+
+def calculate_age(birth_date_str):
+    try:
+        birth_date = datetime.strptime(birth_date_str, "%Y%m%d")
+        current_date = datetime.now()
+        age = current_date.year - birth_date.year - ((current_date.month, current_date.day) < (birth_date.month, birth_date.day))
+        return age
+    except ValueError:
+        return "N/D"
+
+def get_table_data(tree):
+    headers = tree["columns"]
+    data = []
+    for item in tree.get_children():
+        row_values = tree.item(item, "values")
+        data.append([tree.item(item, "text")] + [row_values[headers.index(column)] for column in headers])
+    return [headers] + data
+
+def show_context_menu(event, tree, column):
+    if column == "#0":
+        item = tree.identify_row(event.y)
+        selected_item = tree.selection()[0]
+        patient_name = tree.item(selected_item, "text")
+        context_menu = tk.Menu(root, tearoff=0)
+        context_menu.add_command(label=f"Editar Dados de {patient_name}", command=lambda: edit_patient_name(selected_item))
+        context_menu.post(event.x_root, event.y_root)
+    else:
+        item = tree.identify_row(event.y)
+        context_menu = tk.Menu(root, tearoff=0)
+        context_menu.add_command(label="Editar Dados", command=lambda: edit_patient_name(item))
+        context_menu.post(event.x_root, event.y_root)
+
+def edit_patient_name(selected_item):
+    patient_name = tree.item(selected_item, "text")
+    new_name = simpledialog.askstring("Editar Nome do Paciente", f"Novo Nome para {patient_name}:")
+    if new_name:
+        tree.item(selected_item, text=new_name)
+        result = tk.messagebox.askyesno("Salvar Alterações", "Deseja salvar as alterações?")
+        if result:
+            messagebox.showinfo("Edição Confirmada", "Você editou os dados com sucesso!")
+        else:
+            tree.item(selected_item, text=patient_name)
+            messagebox.showinfo("Edição Cancelada", "As alterações foram canceladas.")
+
+def generate_pdf_report_and_open(tree):
+    header_mapping = {
+        0: "Nome do paciente",
+        1: "Data de nascimento",
+        3: "Idade",
+        2: "Sexo",
+        4: "Data do exame",
+        6: "Fabricante",
+        7: "Equipamento",
+        9: "Quantidade de Slices",
+        10: "Espessura do Slice"
+    }
+    table_data = get_table_data(tree)
+    selected_columns_indices = [0, 1, 3, 2, 4, 6, 7, 9]
+    table_data_selected = [[row[i] for i in selected_columns_indices] for row in table_data]
+    headers = [header_mapping.get(i, "") for i in selected_columns_indices]
+    table_data_selected.insert(1, headers)
+    filename = "dicom_report.pdf"
+    pdf = SimpleDocTemplate(filename, pagesize=landscape(letter))
+    table = Table(table_data_selected[1:], repeatRows=1)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONT', (0, 0), (-1, -1), 'Helvetica', 8)
+    ]))
+    header_style = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('GRID', (0, 0), (-1, 0), 1, colors.black),
+        ('FONT', (0, 0), (-1, 0), 'Helvetica', 8)
+    ])
+    table.setStyle(header_style)
+    pdf.build([table])
+    subprocess.Popen(["xdg-open", filename])
+
+def open_file_dialog():
+    folder_selected = filedialog.askdirectory()
+    if folder_selected:
+        load_files_in_directory(folder_selected)
+
+def load_files_in_directory(folder):
+    for filename in os.listdir(folder):
+        filepath = os.path.join(folder, filename)
+        if os.path.isfile(filepath) and filename.lower().endswith(".dcm"):
+            try:
+                ds = dicom.dcmread(filepath)
+                add_dicom_data_to_tree(ds)
+            except InvalidDicomError:
+                print(f"Skipping invalid DICOM file: {filepath}")
+
+def add_dicom_data_to_tree(ds):
+    patient_name = ds.PatientName.family_name + ", " + ds.PatientName.given_name
+    birth_date = ds.PatientBirthDate
+    age = calculate_age(birth_date)
+    sex = ds.PatientSex
+    study_date = ds.StudyDate
+    manufacturer = ds.Manufacturer
+    model = ds.ManufacturerModelName
+    slices = len(ds.pixel_array)
+    slice_thickness = calculate_slice_thickness(ds)
+
+    tree.insert("", "end", values=(patient_name, birth_date, age, sex, study_date, model, manufacturer, slices, slice_thickness))
+
+root = ThemedTk(theme="arc")  # Use your preferred theme
+root.title("DICOM Explorer")
+root.geometry("800x600")
+
+frame = ttk.Frame(root)
+frame.pack(fill="both", expand=True)
+
+tree = ttk.Treeview(frame, columns=(0, 1, 3, 2, 4, 6, 7, 9, 10), show="headings", height=20)
+vsb = ttk.Scrollbar(frame, orient="vertical", command=tree.yview)
+hsb = ttk.Scrollbar(frame, orient="horizontal", command=tree.xview)
+tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+for col in (0, 1, 3, 2, 4, 6, 7, 9, 10):
+    tree.heading(col, text=col, anchor="w")
+    tree.column(col, anchor="w", width=100)
+
+tree.grid(column=0, row=0, sticky="nsew")
+vsb.grid(column=1, row=0, sticky="ns")
+hsb.grid(column=0, row=1, sticky="ew")
+
+frame.grid_columnconfigure(0, weight=1)
+frame.grid_rowconfigure(0, weight=1)
+
+tree.bind("<Button-3>", lambda event: show_context_menu(event, tree, tree.identify_column(event.x)))
+tree.bind("<Button-1>", lambda event: tree.focus_set())
+
+menu = tk.Menu(root)
+root.config(menu=menu)
+file_menu = tk.Menu(menu)
+menu.add_cascade(label="Arquivo", menu=file_menu)
+file_menu.add_command(label="Abrir Pasta", command=open_file_dialog)
+file_menu.add_command(label="Gerar Relatório PDF", command=lambda: generate_pdf_report_and_open(tree))
+file_menu.add_separator()
+file_menu.add_command(label="Sair", command=root.destroy)
+
+root.mainloop()
