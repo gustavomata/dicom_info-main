@@ -53,7 +53,7 @@ def get_table_data(tree):
     # Retorna os cabeçalhos e os dados da tabela
     return [headers] + data
 
-def show_context_menu(event, tree, column):
+""" def show_context_menu(event, tree, column):
     print(f"Column: {column}, Event: {event}")
     if column == "#0":
         # Se a coluna for a primeira coluna, crie um menu suspenso personalizado
@@ -68,14 +68,15 @@ def show_context_menu(event, tree, column):
         item = tree.identify_row(event.y)
         context_menu = tk.Menu(root, tearoff=0)  # Correção aqui, substitua 'roots' por 'root'
         context_menu.add_command(label="Editar Dados", command=lambda: edit_patient_name(item))
-        context_menu.post(event.x_root, event.y_root)  # Correção aqui, substitua 'x_roots' por 'x_root' e 'y_roots' por 'y_root'
+        context_menu.post(event.x_root, event.y_root)  # Correção aqui, substitua 'x_roots' por 'x_root' e 'y_roots' por 'y_root' 
+
 
 def edit_patient_name(event):
     # Obtenha a linha selecionada
     selected_item = tree.selection()[0]
     patient_name = tree.item(selected_item, "text")
     # Crie uma janela de diálogo para editar o nome do paciente
-    new_name = simpledialog.askstring("Editar Nome do Paciente", f"Novo Nome para {patient_name}:")
+    new_name = simpledialog.askstring("Editar Nome do Paciente", f"Novo Nome para {patient_name}:") 
 
     if new_name:
         # Atualize o nome na árvore
@@ -88,12 +89,13 @@ def edit_patient_name(event):
         else:
             # Reverter para o nome anterior
             tree.item(selected_item, text=patient_name)
-            messagebox.showinfo("Edição Cancelada", "As alterações foram canceladas.")
+            messagebox.showinfo("Edição Cancelada", "As alterações foram canceladas.") """
+
 
 
 def generate_pdf_report_and_open(tree):
     
-    # Mapeamento dos índices das colunas para os nomes dos cabeçalhos
+# Mapeamento dos índices das colunas para os nomes dos cabeçalhos
     header_mapping = {
         0: "Nome do paciente",
         1: "Data de nascimento",
@@ -104,7 +106,7 @@ def generate_pdf_report_and_open(tree):
         7: "Equipamento",
         9: "Quantidade de Slices",
         10: "Espessura do Slice"
-    }
+        }
     
     # Obtém os dados da tabela
     table_data = get_table_data(tree)
@@ -188,6 +190,7 @@ def show_dicom_info(main_directory):
             items.sort(key=lambda item: tree.item(item, 'text').lower())
             for item in items:
                 tree.move(item, "", "end")
+
     def on_close():
         nonlocal analysis_interrupted
         analysis_interrupted = True  # Set the flag to indicate that the analysis has been interrupted
@@ -273,6 +276,7 @@ def show_dicom_info(main_directory):
 
                             patient_name = extract_clean_name(ds.PatientName.given_name, ds.PatientName.family_name)
                             patient_key = f"{patient_name}_{ds.PatientID}"
+                            
 
                             if patient_key not in patient_info:
                                 patient_folder = os.path.join(current_directory, root_folder)
@@ -596,7 +600,7 @@ def show_dicom_info(main_directory):
     root.grid_rowconfigure(5, weight=1)
     root.grid_columnconfigure(0, weight=1)
     tree.bind("<Double-1>", open_folder) # Muda o evento de duplo clique para abrir a pasta no Windows Explorer
-    tree.bind("<ButtonRelease-1>", on_table_click)
+    # tree.bind("<ButtonRelease-1>", on_table_click)
     tree.tag_bind(col, "<Button-3>", lambda event, col=col: show_context_menu(event, tree, root))
 
 
