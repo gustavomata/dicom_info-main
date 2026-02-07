@@ -32,8 +32,3 @@ The DICOM INFO Analysis Application is a tool developed in Python with a graphic
 
 This application offers an efficient and convenient way to analyze and manage medical images in DICOM format, providing valuable insights for healthcare professionals and researchers.
 
-
-SOFTWARE.
-
-![image](https://github.com/gustavomata/dicom_info-main/assets/47390349/951a0379-c671-4b4d-bca4-f846c4b21e41)
-
